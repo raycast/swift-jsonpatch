@@ -30,7 +30,6 @@ struct JSONPatchGenerator {
         case move(from: JSONPointer, old: JSONElement, path: JSONPointer, value: JSONElement)
     }
 
-    private var unchanged: [JSONPointer: JSONElement] = [:]
     private var operations: [Operation] = []
     private var patchOperations: [JSONPatch.Operation] {
         return operations.map(JSONPatch.Operation.init)
@@ -38,61 +37,8 @@ struct JSONPatchGenerator {
 
     static func generatePatch(source: JSONElement, target: JSONElement) throws -> [JSONPatch.Operation] {
         var generator = JSONPatchGenerator()
-        try generator.computeUnchanged(pointer: JSONPointer.wholeDocument, a: source, b: target)
         try generator.generateDiffs(pointer: JSONPointer.wholeDocument, source: source, target: target)
         return generator.patchOperations
-    }
-
-    private mutating func computeUnchanged(pointer: JSONPointer, a: JSONElement, b: JSONElement) throws {
-        guard a != b else {
-            unchanged[pointer] = a
-            return
-        }
-
-        switch (a, b) {
-        case (.object(let dictA), .object(let dictB)),
-             (.object(let dictA), .mutableObject(let dictB as NSDictionary)),
-             (.mutableObject(let dictA as NSDictionary), .object(let dictB)),
-             (.mutableObject(let dictA as NSDictionary), .mutableObject(let dictB as NSDictionary)):
-            try computeObjectUnchanged(pointer: pointer, a: dictA, b: dictB)
-
-        case (.array(let arrayA), .array(let arrayB)),
-             (.array(let arrayA), .mutableArray(let arrayB as NSArray)),
-             (.mutableArray(let arrayA as NSArray), .array(let arrayB)),
-             (.mutableArray(let arrayA as NSArray), .mutableArray(let arrayB as NSArray)):
-            try computeArrayUnchanged(pointer: pointer, a: arrayA, b: arrayB)
-
-        default:
-            break
-        }
-    }
-
-    private mutating func computeObjectUnchanged(pointer: JSONPointer,
-                                                 a: NSDictionary,
-                                                 b: NSDictionary) throws {
-        guard let keys = a.allKeys as? [String] else {
-            return
-        }
-
-        for key in keys {
-            guard let valueA = a[key], let valueB = b[key] else {
-                continue
-            }
-            try computeUnchanged(pointer: pointer.appended(withComponent: key),
-                                 a: try JSONElement(any: valueA),
-                                 b: try JSONElement(any: valueB))
-        }
-    }
-
-    private mutating func computeArrayUnchanged(pointer: JSONPointer,
-                                                a: NSArray,
-                                                b: NSArray) throws {
-        let count = min(a.count, b.count)
-        for index in 0..<count {
-            try computeUnchanged(pointer: pointer.appended(withIndex: index),
-                                 a: try JSONElement(any: a[index]),
-                                 b: try JSONElement(any: b[index]))
-        }
     }
 
     private mutating func generateDiffs(pointer: JSONPointer,
