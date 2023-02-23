@@ -145,35 +145,7 @@ struct JSONPatchGenerator {
     }
 
     private mutating func add(path: JSONPointer, value: JSONElement) {
-        if let removalIndex = findPreviouslyRemoved(value: value) {
-            guard case let .remove(removedPath, _) = operations[removalIndex] else {
-                return
-            }
-            operations.remove(at: removalIndex)
-            operations.append(.move(from: removedPath, old: value, path: path, value: value))
-            return
-        }
-        if let oldPath = findUnchangedValue(value: value) {
-            operations.append(.copy(from: oldPath, path: path, value: value))
-        } else {
-            operations.append(.add(path: path, value: value))
-        }
-    }
-
-    private func findUnchangedValue(value: JSONElement) -> JSONPointer? {
-        for (pointer, old) in unchanged where value == old {
-            return pointer
-        }
-        return nil
-    }
-
-    private func findPreviouslyRemoved(value: JSONElement) -> Int? {
-        return operations.firstIndex { (op) -> Bool in
-            guard case let .remove(_, old) = op else {
-                return false
-            }
-            return value == old
-        }
+        operations.append(.add(path: path, value: value))
     }
 }
 
